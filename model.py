@@ -7,6 +7,7 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, d_model ,num_heads):
         super().__init__()
         assert d_model % num_heads == 0, "d_models must be divis by num_heads"
+        # https://logangraves.com/building-a-transformer-2024
 
         self.d_model = d_model
         self.num_heads = num_heads
@@ -95,6 +96,7 @@ class TransformerBlock(nn.Module):
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_seq_length=256):
         super().__init__()
+        # https://medium.com/@laoluoyefolu/transformers-a-practical-guide-with-pytorch-9243b4dc4c37
 
         pe = torch.zeros(max_seq_length, d_model)
         position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1)
