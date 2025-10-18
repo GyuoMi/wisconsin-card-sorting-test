@@ -1,0 +1,9 @@
+train.py
+https://medium.com/@swarms/understanding-masking-in-pytorch-for-attention-mechanisms-e725059fd49f
+
+model.py
+https://logangraves.com/building-a-transformer-2024
+https://medium.com/@laoluoyefolu/transformers-a-practical-guide-with-pytorch-9243b4dc4c37
+
+General
+https://nlp.seas.harvard.edu/annotated-transformer/
