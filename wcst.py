@@ -69,11 +69,12 @@ class WCST:
         print("Feature for Classification: ", self.category_feature, "\n")
         return trials
 
-wcst = WCST(6)
-for i in range(2):
-    batch = next(wcst.gen_batch())
-    wcst.visualise_batch(batch)
-wcst.context_switch()
-for i in range(2):
-    batch = next(wcst.gen_batch())
-    wcst.visualise_batch(batch)
+# demo gen
+# wcst = WCST(6)
+# for i in range(2):
+#     batch = next(wcst.gen_batch())
+#     wcst.visualise_batch(batch)
+# wcst.context_switch()
+# for i in range(2):
+#     batch = next(wcst.gen_batch())
+#     wcst.visualise_batch(batch)

@@ -29,7 +29,7 @@ class MultiHeadAttention(nn.Module):
 
         attn_probs = torch.softmax(attn_scores, dim=-1)
         output = torch.matmul(attn_probs, V)
-        return output
+        return output, attn_probs
 
 
     def forward(self, x, mask=None):
@@ -46,13 +46,13 @@ class MultiHeadAttention(nn.Module):
         K = K.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)
         V = V.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)
 
-        attn_output = self.scaled_dot_prod_attention(Q, K, V, mask)
+        attn_output, attn_probs = self.scaled_dot_prod_attention(Q, K, V, mask)
 
         # now combines heads back
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_length, self.d_model)
 
         # and pass it through the final linear layer
-        return self.w_o(attn_output)
+        return self.w_o(attn_output), attn_probs
 
     
 class FeedForward(nn.Module):
@@ -82,7 +82,7 @@ class TransformerBlock(nn.Module):
         # attn -> add&norm -> feed-forward -> add&norm
 
         # self-attention part
-        attn_output = self.attention(x, mask)
+        attn_output, self.attention_weights = self.attention(x, mask)
         # add & norm (skip/residual connection)
         x = self.norm1(x + self.dropout(attn_output))
 
@@ -135,5 +135,9 @@ class Transformer(nn.Module):
         for block in self.blocks:
             x = block(x, mask)
 
-        return self.fc_out(x)
+        # grab the attn weights from the very last block
+        # the TransformerBlock conveniently stores them for us
+        last_attention_weights = self.blocks[-1].attention_weights
+
+        return self.fc_out(x), last_attention_weights
 

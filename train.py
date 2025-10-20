@@ -37,7 +37,7 @@ def train_model(args):
         max_seq_length=32
     ).to(device)
 
-    print(f"Model has {sum(p.numel() for p in model.parameters() if p.requires_grad):, } trainable parameters.")
+    print(f"Model has {sum(p.numel() for p in model.parameters() if p.requires_grad):,} trainable parameters.")
 
     # loss function and optimiser
     criterion = nn.CrossEntropyLoss()
@@ -53,6 +53,11 @@ def train_model(args):
 
         # the model's task is to predict the final token of the question
         # so, the input is everything 'before' that final token
+
+        # we'll change the rule after 2000 steps
+        if (step > 0) and (step % 10000 == 0):
+            wcst_generator.context_switch()
+
         input_data = torch.cat([
             torch.from_numpy(context_batch),
             torch.from_numpy(question_batch[:, :-1]),
@@ -67,7 +72,8 @@ def train_model(args):
 
         #forward pass
         optimiser.zero_grad()
-        output_logits = model(input_data, mask)
+        # _ is not used, we ignore the attention weights
+        output_logits, _ = model(input_data, mask)
 
         # want to only care about the pred for the verrry last token
         final_token_logits = output_logits[:, -1, :]
@@ -87,17 +93,17 @@ def train_model(args):
             # TODO: possible validation check
     
     print("Model trained")
-    torch.save(model.state_dict(), f'wcst_transformer_{model_acc*100:.2f}')
+    torch.save(model.state_dict(), f'wcst_transformer_{model_acc*100:.2f}.pth')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a Transformer for the WCST task.')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training.')
-    parser.add_argument('--d_model', type=int, default=128, help='Dimension of the model embeddings.')
-    parser.add_argument('--num_heads', type=int, default=4, help='Number of attention heads.')
-    parser.add_argument('--num_blocks', type=int, default=4, help='Number of transformer blocks.')
-    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')
-    parser.add_argument('--n_steps', type=int, default=10000, help='Number of training steps.')
+    parser.add_argument('--d_model', type=int, default=384, help='Dimension of the model embeddings.')
+    parser.add_argument('--num_heads', type=int, default=8, help='Number of attention heads.')
+    parser.add_argument('--num_blocks', type=int, default=6, help='Number of transformer blocks.')
+    parser.add_argument('--lr', type=float, default=5e-5, help='Learning rate.')
+    parser.add_argument('--n_steps', type=int, default=70000, help='Number of training steps.')
     
     args = parser.parse_args()
     train_model(args) 
