@@ -28,16 +28,16 @@ def run_test_set_evaluation(model, device, test_generator, n_test_steps):
 
             target = torch.from_numpy(question_batch[:, -1]).long().to(device)
 
-            seq_len = input_data(1)
+            seq_len = input_data.size(1)
             mask = generate_causal_mask(seq_len).to(device)
 
             # we only need the logits, can ignore the attention weights here
             output_logits, _ = model(input_data, mask)
-            final_token_logits = output_logits[: -1, :]
+            final_token_logits = output_logits[:, -1, :]
 
-            preds = torch.argmax(final_token_logits, dims=-1)
+            preds = torch.argmax(final_token_logits, dim=-1)
 
-            total_correct += (pres == target).sum().item()
+            total_correct += (preds == target).sum().item()
             total_samples += target.size(0)
 
     accuracy = total_correct / total_samples
@@ -55,7 +55,7 @@ def show_preds(model, device, test_generator):
 
     num_examples = 5
     input_data = torch.cat([
-        torch.from_numpy(context_batch[num_examples]),
+        torch.from_numpy(context_batch[:num_examples]),
         torch.from_numpy(question_batch[:num_examples, :-1])
     ], dim=1).long().to(device)
     target = torch.from_numpy(question_batch[:num_examples,  -1]).long().to(device)
@@ -72,12 +72,12 @@ def show_preds(model, device, test_generator):
         actual_token = target[i].item()
 
         # grab actual card details from the generator
-        context_cards = [test_generator.cards[c] for c in context_batch[i] if c < 64]
-        context_answer = category_map[context_batch[i][-2]]
+        context_cards = [test_generator.cards[int(c)] for c in context_batch[i] if c < 64]
+        context_answer = category_map[int(context_batch[i][-2])]
 
-        question_card = test_generator.cards[question_batch[i][0]]
+        question_card = test_generator.cards[int(question_batch[i][0])]
 
-        print (f"\n Example {i+1}")
+        print (f"\nExample {i+1}")
         print (f"Context given: the example card {' '.join(context_cards[-1])} matched category {context_answer}")
         print (f"Question: Which category does {' '.join(question_card)} belong to?")
         print (f"Model guessed: {category_map[pred_token]}")
@@ -104,10 +104,10 @@ def plot_card_embeddings(model, test_generator):
     embeddings_2d = pca.fit_transform(card_embeddings)
 
     for feature_name, (feature_idx, feature_map) in features_to_plot.items():
-        labels = [feature_map[int(val)] for val in card_details[:, feature_idx]]
+        labels = list(card_details[:, feature_idx])
 
         plt.figure(figsize=(12, 10))
-        scatter = plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], c=[feature_map.index(1) for l in labels])
+        scatter = plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], c=[feature_map.index(l) for l in labels])
         plt.title(f"2D PCA of Card Embeddings (Coloured by {feature_name.capitalize()})")
         plt.xlabel('PCA Component 1')
         plt.ylabel('PCA Component 2')
@@ -180,11 +180,11 @@ def plot_attention_map(model, device, test_generator):
 def main():
     parser = argparse.ArgumentParser(description='Evaluate a trained WCST Transformer.')
     #  IMPORTANT prereq: these params need to match the saved model
-    parser.add_argument('--d_model', type=int, default=256)
+    parser.add_argument('--d_model', type=int, default=384)
     parser.add_argument('--num_heads', type=int, default=8)
     parser.add_argument('--num_blocks', type=int, default=6)
     
-    parser.add_argument('--model_path', type=str, default='wcst_transformer.pth')
+    parser.add_argument('--model_path', type=str, default='wcst_transformer_48.44.pth')
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_test_steps', type=int, default=100)
     
@@ -192,7 +192,7 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = Transformer(vocab_size=70, d_model=args.d_model, num_blocks=args.num_blocks, num_heads=args.num_heads).to(device)
+    model = Transformer(vocab_size=70, d_model=args.d_model, num_blocks=args.num_blocks, num_heads=args.num_heads, max_seq_length=32).to(device)
     
     try:
         model.load_state_dict(torch.load(args.model_path, map_location=device))
@@ -208,7 +208,7 @@ def main():
         
     test_generator = WCST(args.batch_size)
     
-    run_test_set_evaluation(model, device, test_generator, args.num_test_steps)
+    run_test_set_evaluation(model, device, test_generator, args.n_test_steps)
     show_preds(model, device, test_generator)
     plot_card_embeddings(model, test_generator)
     plot_attention_map(model, device, test_generator)
