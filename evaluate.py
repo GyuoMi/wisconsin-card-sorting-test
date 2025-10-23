@@ -120,7 +120,7 @@ def plot_card_embeddings(model, test_generator):
         plt.savefig(save_path)
 
 def plot_attention_map(model, device, test_generator):
-    # this should try and visualise the attention mechanism
+    # this should try and visualise the attention mechanism as a heatmap
 
     model.eval()
     context_batch, question_batch = next(test_generator.gen_batch())

@@ -11,8 +11,6 @@ import warnings
 # class imports
 from wcst import WCST
 from model import Transformer
-# from utils import adapt_batch_for_encoder
-# we do the encoder model later for now the decoder is most important
 
 warnings.filterwarnings("ignore")
 
@@ -52,18 +50,15 @@ def run_validation(model, validation_generator, device, num_val_steps=50):
 
 def train_model(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    wcst_generator = WCST(args.batch_size)
-
-    validation_generator = WCST(args.batch_size)
     
-    # --- Check if we need to force a rule ---
+    # Create ONE generator, passing in the seed 
+    wcst_generator = WCST(args.batch_size, seed=args.seed)
+    
     if args.force_rule is not None:
         if args.force_rule == -1:
              print("Using random switching rule.")
         elif args.force_rule in [0, 1, 2]:
-            # Force both generators to use the same rule
             wcst_generator.force_rule(args.force_rule)
-            validation_generator.force_rule(args.force_rule)
         else:
             print(f"Invalid rule {args.force_rule}. Using random default.")
     # ---------------------------------------------
@@ -104,11 +99,10 @@ def train_model(args):
         # so, the input is everything 'before' that final token
 
         # we'll change the rule after x steps
-        # --- This logic is now controlled by force_rule ---
+        # This logic is now controlled by force_rule
         if args.force_rule == -1 and (step > 0) and (step % 10000 == 0): # Using 10k steps
             print(f"\n---!!! RANDOM CONTEXT SWITCH at step {step} !!!---") 
             wcst_generator.context_switch()
-            validation_generator.context_switch() # Keep them in sync
         # ---------------------------------------------
 
         # get a batch of data
@@ -131,7 +125,7 @@ def train_model(args):
         # _ is not used, we ignore the attention weights
         output_logits, _ = model(input_data, mask)
 
-        # want to only care about the pred for the very last token
+        # want to only care about the pred for the verrry last token
         final_token_logits = output_logits[:, -1, :]
         loss = criterion(final_token_logits, target)
 
@@ -145,13 +139,17 @@ def train_model(args):
             preds = torch.argmax(final_token_logits, dim=-1)
             train_accuracy = (preds == target).float().mean().item()
             
-            # --- Pass the separate validation generator ---
-            val_accuracy = run_validation(model, validation_generator, device)
+            # --- Pass the ONE generator to validation ---
+            val_accuracy = run_validation(model, wcst_generator, device)
             
             print(f"\nStep [{step+1}/{args.n_steps}], Loss: {loss.item():.4f}, Train Acc: {train_accuracy*100:.2f}%, Val Acc: {val_accuracy*100:.2f}%")
             
-            if val_accuracy > best_val_accuracy:
-                print(f"  New best model Saving to {save_path} (Val Acc: {val_accuracy*100:.2f}%)")
+            if val_accuracy >= best_val_accuracy:
+                if val_accuracy > best_val_accuracy:
+                    print(f"  New best model! Saving to {save_path} (Val Acc: {val_accuracy*100:.2f}%)")
+                else:
+                    print(f"  Updating best model checkpoint at {val_accuracy*100:.2f}% Val Acc.")
+                
                 best_val_accuracy = val_accuracy
                 torch.save(model.state_dict(), save_path)
     
@@ -166,16 +164,15 @@ if __name__ == '__main__':
     parser.add_argument('--num_heads', type=int, default=8)
     parser.add_argument('--num_blocks', type=int, default=6)
     
-    # Use the 100% model
-    parser.add_argument('--load_model', type=str, default=None, help='Optional: Path to a pre-trained model file to load weights from.')
-    
-    # Fine-tuning params
+    parser.add_argument('--load_model', type=str, default=None, help='Optional: Path to a pre-trained model.')
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate.')
     parser.add_argument('--n_steps', type=int, default=30000, help='Number of training steps.') # 30k should be enough
     
-    # --- NEW ARGUMENTS FOR CURRICULUM ---
+    # --- Curriculum Arguments ---
     parser.add_argument('--force_rule', type=int, default=None, help='Force a specific rule: 0=colour, 1=shape, 2=quantity, -1=random switching.')
     parser.add_argument('--save_suffix', type=str, default="finetuned", help='Suffix for the saved model file.')
+    
+    parser.add_argument('--seed', type=int, default=None, help='Random seed for the data generator.')
     
     args = parser.parse_args()
     train_model(args)

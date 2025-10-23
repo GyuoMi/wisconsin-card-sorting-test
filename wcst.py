@@ -2,15 +2,25 @@ import numpy as np
 
 class WCST:
     
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, seed=None): # Add seed argument
         self.colours = ['red','blue','green','yellow']
         self.shapes = ['circle','square','star','cross']
         self.quantities = ['1','2','3','4']
         self.categories = ['C1','C2','C3','C4']
-        self.category_feature = np.random.choice([0,1,2])
+        
+        # --- Seeding Logic ---
+        if seed is None:
+            seed = np.random.randint(0, 2**32 - 1) # Generate a random seed
+            print(f"--- WCST instance created with random seed: {seed} ---")
+        self.seed = seed
+        # Create a dedicated random number generator for this instance
+        self.rng = np.random.default_rng(self.seed) 
+        # ---------------------
+        
+        # Use the dedicated generator to pick the first rule
+        self.category_feature = self.rng.choice([0,1,2]) 
         self.gen_deck()
         self.batch_size = batch_size
-
 
     def force_rule(self, rule_index):
         """
@@ -30,7 +40,8 @@ class WCST:
         self.card_indices = np.arange(len(cards))
 
     def context_switch(self):
-        self.category_feature = np.random.choice(np.delete([0,1,2],self.category_feature))
+        # Use the dedicated generator to switch rules
+        self.category_feature = self.rng.choice(np.delete([0,1,2],self.category_feature))
 
     def gen_batch(self):
         batch_size = self.batch_size
@@ -40,8 +51,11 @@ class WCST:
             card_partitions = [np.concatenate([np.arange(4**(category_level-1)) + feature_value*(4**(category_level-1))
                               + start for start in np.arange(0,64,int(4**(category_level)))])
                               for feature_value in range(4)]
-            category_cards = np.vstack([np.random.choice(card_partition, batch_size, replace=True) for card_partition in card_partitions]).T
-            category_cards = category_cards[np.arange(batch_size)[:,np.newaxis], [np.random.permutation(4) for _ in range(batch_size)]]
+            
+            # Use the dedicated generator for all random choices
+            category_cards = np.vstack([self.rng.choice(card_partition, batch_size, replace=True) for card_partition in card_partitions]).T
+            category_cards = category_cards[np.arange(batch_size)[:,np.newaxis], [self.rng.permutation(4) for _ in range(batch_size)]]
+            
             category_cards_feature = (category_cards % (4**category_level)) // (4**(category_level-1))
             available_cards = np.delete(np.outer(np.ones((batch_size,1)),self.card_indices).reshape(-1),\
                                        (category_cards+np.arange(batch_size)[:,np.newaxis]*64).reshape(-1)).reshape(batch_size, 60)
