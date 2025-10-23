@@ -11,6 +11,15 @@ class WCST:
         self.gen_deck()
         self.batch_size = batch_size
 
+
+    def force_rule(self, rule_index):
+        """
+        Forces the generator to use a specific rule.
+        0 = colour, 1 = shape, 2 = quantity.
+        """
+        print(f"\n--- GENERATOR RULE FORCED TO: {rule_index} ---")
+        self.category_feature = rule_index
+
     def gen_deck(self):
         cards = []
         for colour in self.colours:

@@ -180,11 +180,11 @@ def plot_attention_map(model, device, test_generator):
 def main():
     parser = argparse.ArgumentParser(description='Evaluate a trained WCST Transformer.')
     #  IMPORTANT prereq: these params need to match the saved model
-    parser.add_argument('--d_model', type=int, default=384)
+    parser.add_argument('--d_model', type=int, default=256)
     parser.add_argument('--num_heads', type=int, default=8)
     parser.add_argument('--num_blocks', type=int, default=6)
     
-    parser.add_argument('--model_path', type=str, default='wcst_transformer_48.44.pth')
+    parser.add_argument('--model_path', type=str, default='wcst_transformer_final.pth')
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_test_steps', type=int, default=100)
     

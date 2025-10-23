@@ -11,6 +11,8 @@ import warnings
 # class imports
 from wcst import WCST
 from model import Transformer
+# from utils import adapt_batch_for_encoder
+# we do the encoder model later for now the decoder is most important
 
 warnings.filterwarnings("ignore")
 
@@ -22,7 +24,6 @@ def generate_causal_mask(seq_len):
 
 @torch.no_grad() 
 def run_validation(model, validation_generator, device, num_val_steps=50):
-    # This function is unchanged, but we'll pass it the main generator
     model.eval() 
     total_correct = 0
     total_samples = 0
@@ -51,10 +52,21 @@ def run_validation(model, validation_generator, device, num_val_steps=50):
 
 def train_model(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    # --- FIX: Create ONLY ONE generator ---
     wcst_generator = WCST(args.batch_size)
-    # We no longer create a separate validation_generator
+
+    validation_generator = WCST(args.batch_size)
+    
+    # --- Check if we need to force a rule ---
+    if args.force_rule is not None:
+        if args.force_rule == -1:
+             print("Using random switching rule.")
+        elif args.force_rule in [0, 1, 2]:
+            # Force both generators to use the same rule
+            wcst_generator.force_rule(args.force_rule)
+            validation_generator.force_rule(args.force_rule)
+        else:
+            print(f"Invalid rule {args.force_rule}. Using random default.")
+    # ---------------------------------------------
 
     # transofmer model construction
     model = Transformer(
@@ -82,16 +94,22 @@ def train_model(args):
     
     model.train()
     best_val_accuracy = 0.0
-    save_path = "wcst_transformer_finetuned.pth" # New save name
+    # --- Save path now includes the suffix ---
+    save_path = f"wcst_transformer_{args.save_suffix}.pth" 
 
     # training loop
     for step in tqdm.tqdm(range(args.n_steps)):
 
+        # the model's task is to predict the final token of the question
+        # so, the input is everything 'before' that final token
+
         # we'll change the rule after x steps
-        if (step > 0) and (step % 10000 == 0): # Using 10k steps
-            print(f"\n---!!! CONTEXT SWITCH at step {step} !!!---") 
+        # --- This logic is now controlled by force_rule ---
+        if args.force_rule == -1 and (step > 0) and (step % 10000 == 0): # Using 10k steps
+            print(f"\n---!!! RANDOM CONTEXT SWITCH at step {step} !!!---") 
             wcst_generator.context_switch()
-            # No need to switch the validation_generator, it's the same object
+            validation_generator.context_switch() # Keep them in sync
+        # ---------------------------------------------
 
         # get a batch of data
         context_batch, question_batch = next(wcst_generator.gen_batch())
@@ -101,14 +119,19 @@ def train_model(args):
             torch.from_numpy(question_batch[:, :-1]),
         ], dim=1).long().to(device)
 
+        # the target is just the final token (the correct category)
         target = torch.from_numpy(question_batch[:, -1]).long().to(device)
 
+        #create mask for the input sequence
         seq_len = input_data.size(1)
         mask = generate_causal_mask(seq_len).to(device)
 
         #forward pass
         optimiser.zero_grad()
+        # _ is not used, we ignore the attention weights
         output_logits, _ = model(input_data, mask)
+
+        # want to only care about the pred for the very last token
         final_token_logits = output_logits[:, -1, :]
         loss = criterion(final_token_logits, target)
 
@@ -122,10 +145,9 @@ def train_model(args):
             preds = torch.argmax(final_token_logits, dim=-1)
             train_accuracy = (preds == target).float().mean().item()
             
-            # --- FIX: Pass the ONE generator to validation ---
-            val_accuracy = run_validation(model, wcst_generator, device)
+            # --- Pass the separate validation generator ---
+            val_accuracy = run_validation(model, validation_generator, device)
             
-            # Now, Train Acc and Val Acc will be testing the SAME rule
             print(f"\nStep [{step+1}/{args.n_steps}], Loss: {loss.item():.4f}, Train Acc: {train_accuracy*100:.2f}%, Val Acc: {val_accuracy*100:.2f}%")
             
             if val_accuracy > best_val_accuracy:
@@ -137,7 +159,7 @@ def train_model(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train or Fine-tune a Transformer for the WCST task.')
+    parser = argparse.ArgumentParser(description='Train a Transformer via Curriculum Learning.')
     # These args should match your 100% model
     parser.add_argument('--batch_size', type=int, default=128) 
     parser.add_argument('--d_model', type=int, default=256)
@@ -145,11 +167,15 @@ if __name__ == '__main__':
     parser.add_argument('--num_blocks', type=int, default=6)
     
     # Use the 100% model
-    parser.add_argument('--load_model', type=str, default="wcst_transformer_best_single.pth", help='Optional: Path to a pre-trained model file to load weights from.')
+    parser.add_argument('--load_model', type=str, default=None, help='Optional: Path to a pre-trained model file to load weights from.')
     
     # Fine-tuning params
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate.')
-    parser.add_argument('--n_steps', type=int, default=50000, help='Number of training steps.')
+    parser.add_argument('--n_steps', type=int, default=30000, help='Number of training steps.') # 30k should be enough
+    
+    # --- NEW ARGUMENTS FOR CURRICULUM ---
+    parser.add_argument('--force_rule', type=int, default=None, help='Force a specific rule: 0=colour, 1=shape, 2=quantity, -1=random switching.')
+    parser.add_argument('--save_suffix', type=str, default="finetuned", help='Suffix for the saved model file.')
     
     args = parser.parse_args()
     train_model(args)
