@@ -7,3 +7,6 @@ https://medium.com/@laoluoyefolu/transformers-a-practical-guide-with-pytorch-924
 
 General
 https://nlp.seas.harvard.edu/annotated-transformer/
+
+Learning rate warmup and cosine decay
+https://stackabuse.com/learning-rate-warmup-with-cosine-decay-in-keras-and-tensorflow/

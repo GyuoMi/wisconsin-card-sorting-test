@@ -184,7 +184,7 @@ def main():
     parser.add_argument('--num_heads', type=int, default=8)
     parser.add_argument('--num_blocks', type=int, default=6)
     
-    parser.add_argument('--model_path', type=str, default='wcst_transformer_final.pth')
+    parser.add_argument('--model_path', type=str, default='wcst_transformer_final_v2.pth')
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_test_steps', type=int, default=100)
     
