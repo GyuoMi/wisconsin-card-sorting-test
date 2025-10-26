@@ -11,7 +11,7 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         assert d_model % num_heads == 0
         
-        self.d_model = d_model # <-- This is the fix
+        self.d_model = d_model 
         self.d_k = d_model // num_heads
         self.num_heads = num_heads
         
@@ -20,7 +20,6 @@ class MultiHeadAttention(nn.Module):
         self.w_v = nn.Linear(d_model, d_model)
         self.w_o = nn.Linear(d_model, d_model)
         
-        # Dropout layers
         self.attn_dropout = nn.Dropout(dropout)
         self.proj_dropout = nn.Dropout(dropout)
 
@@ -76,7 +75,7 @@ class TransformerBlock(nn.Module):
     def __init__(self, d_model, num_heads, d_ff=None, dropout=0.1):
         super().__init__()
         
-        # --- This is the Pre-Norm architecture ---
+        # This is the Pre-Norm architecture 
         self.norm1 = nn.LayerNorm(d_model) # Normalise *before* attention
         self.attention = MultiHeadAttention(d_model, num_heads, dropout)
         
@@ -87,14 +86,14 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x, mask=None):
         
-        # --- Pre-Norm Attention ---
+        # --- Pre-norm Attention ---
         # 1. Normalise
         # 2. Pass through attention
         # 3. Add to original 'x' (residual connection)
         attn_output, self.attention_weights = self.attention(self.norm1(x), mask)
         x = x + attn_output
         
-        # --- Pre-Norm Feed-Forward ---
+        # --- Pre-norm Feed-Forward ---
         # 1. Normalise
         # 2. Pass through feed-forward
         # 3. Add to the result of the previous step
@@ -115,7 +114,7 @@ class Transformer(nn.Module):
         # We have 6 special tokens (C1, C2, C3, C4, SEP, EOS)
         # These correspond to token IDs 64-69
         self.special_embed = nn.Embedding(6, d_model)
-        # ---------------------------------------------------
+        # -----------------------------------
         
         self.positional_encoding = nn.Embedding(max_seq_length, d_model)
         self.emb_dropout = nn.Dropout(dropout)
