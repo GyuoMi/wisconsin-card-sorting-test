@@ -9,7 +9,7 @@ import tqdm
 import warnings
 
 # class imports
-from wcst import WCST
+from wcst_gen_rule import WCST
 from model import Transformer
 
 warnings.filterwarnings("ignore")

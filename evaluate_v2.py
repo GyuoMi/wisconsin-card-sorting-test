@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 
 # --- CHANGE 1: Import the new v2 model ---
 from model_v2 import Transformer
-from wcst import WCST
+from wcst_gen_rule import WCST
 # We don't need the train.py mask function if we import the v2 model
 # but we do need it if train.py has it... let's keep it simple
 # and re-define it here just in case.

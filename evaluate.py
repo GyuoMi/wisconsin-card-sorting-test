@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 from model import Transformer
-from wcst import WCST
+from wcst_gen_rule import WCST
 from train import generate_causal_mask
 
 def run_test_set_evaluation(model, device, test_generator, n_test_steps):

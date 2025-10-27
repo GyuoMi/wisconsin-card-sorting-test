@@ -8,7 +8,7 @@ import tqdm
 import warnings
 
 from model_v2 import Transformer
-from wcst import WCST
+from wcst_gen_rule import WCST
 
 warnings.filterwarnings("ignore")
 
